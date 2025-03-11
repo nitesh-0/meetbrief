@@ -1,4 +1,4 @@
-# 📝 MeetBrief: GOvernment Meeting Summarizer
+# 📝 MeetBrief: Government Meeting Summarizer
 
 An automated meeting and summarization platform that allows users to upload meeting recordings (MP3/MP4). The backend processes the recording using WhisperX for transcription and a fine-tuned BART model for summarization. The frontend displays the transcript and summarized content in an intuitive user interface.
 
