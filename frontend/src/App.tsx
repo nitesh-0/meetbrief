@@ -25,7 +25,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-300 to-blue-300 p-6">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-300 to-blue-400 p-6">
       <h1 className="text-4xl font-extrabold text-center text-gray-800 mb-20">Government Meeting Summarizer</h1>
 
       {/* Upload Section */}
@@ -42,7 +42,7 @@ const App: React.FC = () => {
             onClick={handleUpload}
             disabled={loading}
           >
-            {loading ? 'Processing...' : 'Upload & Transcribe'}
+            {loading ? 'Processing...' : 'Upload & Summarize'}
           </button>
         </div>
       </div>

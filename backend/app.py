@@ -18,7 +18,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 whisper_model = whisperx.load_model("medium", device=device, compute_type="float32")
 
-model_name = "niteshsah-760/BART-LARGE-DIALOGSUM"
+model_name = "sumit7488/meet_brief"
 tokenizer = BartTokenizer.from_pretrained(model_name)
 model = BartForConditionalGeneration.from_pretrained(model_name)
 
@@ -32,23 +32,43 @@ def clean_transcript(text):
     text = re.sub(filler_pattern, "", text, flags=re.IGNORECASE)
     return re.sub(r'\s+', ' ', text).strip()
 
-def chunk_text(text, max_length=900):
-    words = text.split()
-    return [" ".join(words[i:i + max_length]) for i in range(0, len(words), max_length)]
+def chunk_text(text, max_tokens=1024):
+    sentences = text.split(". ")  # Splitting by sentence
+    chunks = []
+    current_chunk = []
+    current_chunk_length = 0
 
-def summarize_long_text(text, chunk_size=900):
-    chunks = chunk_text(text, chunk_size)
+    for sentence in sentences:
+        # Tokenize sentence
+        tokenized_sentence = tokenizer.encode(sentence, add_special_tokens=False)
+        tokenized_sentence_length = len(tokenized_sentence)
+
+        # If adding this sentence exceeds max tokens, store the current chunk and start a new one
+        if current_chunk_length + tokenized_sentence_length <= max_tokens:
+            current_chunk.append(sentence)
+            current_chunk_length += tokenized_sentence_length
+        else:
+            # Store the chunk and reset for new chunk
+            chunks.append(" ".join(current_chunk))
+            current_chunk = [sentence]
+            current_chunk_length = tokenized_sentence_length
+
+    if current_chunk:  # Add the last chunk
+        chunks.append(" ".join(current_chunk))
+
+    return chunks
+
+def summarize_long_text(text, min_length):
+    chunks = chunk_text(text)
     summaries = []
 
     for chunk in chunks:
         inputs = tokenizer(chunk, return_tensors="pt", max_length=1024, truncation=True)
-        summary_ids = model.generate(**inputs, max_length=300, min_length=50, length_penalty=2.0)
+        summary_ids = model.generate(**inputs, max_length=300, min_length=min_length, length_penalty=2.0)
         summaries.append(tokenizer.decode(summary_ids[0], skip_special_tokens=True))
 
-    final_input = " ".join(summaries)
-    final_inputs = tokenizer(final_input, return_tensors="pt", max_length=1024, truncation=True)
-    final_summary_ids = model.generate(**final_inputs, max_length=300, min_length=100, length_penalty=2.0)
-    return tokenizer.decode(final_summary_ids[0], skip_special_tokens=True)
+    return " ".join(summaries)
+
 
 def convert_video_to_audio(video_path, audio_path):
     try:
@@ -86,17 +106,18 @@ def upload_file():
             print("Starting transcription...")
             transcript_result = whisper_model.transcribe(file_path)
             combined_text = " ".join(segment["text"] for segment in transcript_result["segments"])
-            print("Transcription completed.")
+            
         except Exception as e:
             print(f"Transcription failed: {str(e)}")
             return jsonify({"error": f"Transcription failed: {str(e)}"}), 500
 
         cleaned_transcript = clean_transcript(combined_text)
-
+        print("Transcription completed.", cleaned_transcript)
         try:
             print("Starting summarization...")
-            summary_text = summarize_long_text(cleaned_transcript)
-            print("Summarization completed.")
+            first_summary = summarize_long_text(cleaned_transcript, 50)
+            final_summary = summarize_long_text(first_summary, 100)
+            print("Summarization completed.", final_summary)
         except Exception as e:
             print(f"Summarization failed: {str(e)}")
             return jsonify({"error": f"Summarization failed: {str(e)}"}), 500
@@ -104,7 +125,7 @@ def upload_file():
         if os.path.exists(file_path):
             os.remove(file_path)
 
-        return jsonify({"transcript": cleaned_transcript, "summary": summary_text})
+        return jsonify({"transcript": cleaned_transcript, "summary": final_summary})
 
     except Exception as e:
         print(f"Unexpected server error: {str(e)}")
