@@ -11,7 +11,7 @@ subprocess.run(["ffmpeg", "-version"])
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
-CORS(app, origins="http://localhost:5173")
+CORS(app, origins="https://meetbrief.vercel.app/")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
